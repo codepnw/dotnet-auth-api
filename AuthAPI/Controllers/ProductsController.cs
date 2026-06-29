@@ -11,7 +11,7 @@ public class ProductsController : ControllerBase
 {
     // ======================= Example Protected Routes =================
 
-    private static readonly string[] value = ["Product 1", "Product 2", "Product 3"];
+    private static readonly string[] Value = ["Product 1", "Product 2", "Product 3"];
 
     [HttpGet]
     public IActionResult GetAll()
@@ -19,7 +19,7 @@ public class ProductsController : ControllerBase
         return Ok(new
         {
             message = "You have access!",
-            products = value
+            products = Value
         });
     }
 

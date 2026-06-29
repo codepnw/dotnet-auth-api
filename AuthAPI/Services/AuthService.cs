@@ -8,14 +8,16 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using AuthAPI.Commons;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace AuthAPI.Services;
 
 public interface IAuthService
 {
-    Task<TokenResponse> Register(RegisterRequest request);
-    Task<TokenResponse> Login(LoginRequest request);
-    Task<TokenResponse> RefreshToken(RefreshTokenRequest request);
+    Task<Result<TokenResponse>> Register(RegisterRequest request);
+    Task<Result<TokenResponse>> Login(LoginRequest request);
+    Task<Result<TokenResponse>> RefreshToken(RefreshTokenRequest request);
 }
 
 public class AuthService(AppDbContext context, IConfiguration config) : IAuthService
@@ -23,11 +25,11 @@ public class AuthService(AppDbContext context, IConfiguration config) : IAuthSer
     private readonly AppDbContext _context = context;
     private readonly IConfiguration _config = config;
 
-    public async Task<TokenResponse> Register(RegisterRequest request)
+    public async Task<Result<TokenResponse>> Register(RegisterRequest request)
     {
         // Check Email Exists
         if (await _context.Users.AnyAsync(u => u.Email == request.Email))
-            throw new Exception("Email already exists");
+            return Result<TokenResponse>.Failure("Email already exists", ErrorCode.Conflict);
 
         var user = new User
         {
@@ -46,19 +48,19 @@ public class AuthService(AppDbContext context, IConfiguration config) : IAuthSer
         user.RefreshTokenExpiry = GetRefreshTokenExpiry();
         await _context.SaveChangesAsync();
 
-        return tokenResponse;
+        return Result<TokenResponse>.Success(tokenResponse);
     }
 
-    public async Task<TokenResponse> Login(LoginRequest request)
+    public async Task<Result<TokenResponse>> Login(LoginRequest request)
     {
         // Find Email
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
         if (user is null)
-            throw new Exception("Invalid Email or Password");
+            return Result<TokenResponse>.Failure("Invalid email or password", ErrorCode.BadRequest);
 
         // Verify Password
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            throw new Exception("Invalid Email or Password");
+            return Result<TokenResponse>.Failure("Invalid email or password", ErrorCode.BadRequest);
 
         // Generate Token Response
         var tokenResponse = GenerateTokenResponse(user);
@@ -67,19 +69,19 @@ public class AuthService(AppDbContext context, IConfiguration config) : IAuthSer
         user.RefreshTokenExpiry = GetRefreshTokenExpiry();
         await _context.SaveChangesAsync();
 
-        return tokenResponse;
+        return Result<TokenResponse>.Success(tokenResponse);
     }
 
-    public async Task<TokenResponse> RefreshToken(RefreshTokenRequest request)
+    public async Task<Result<TokenResponse>> RefreshToken(RefreshTokenRequest request)
     {
         // Find Refresh Token
         var user = await _context.Users.FirstOrDefaultAsync(u => u.RefreshToken == request.RefreshToken);
         if (user is null)
-            throw new Exception("Invalid Refresh Token");
+            return Result<TokenResponse>.Failure("Refresh token not found", ErrorCode.NotFound);
 
         // Check Expiry
         if (user.RefreshTokenExpiry < DateTime.UtcNow)
-            throw new Exception("Refresh Token Expired");
+            return Result<TokenResponse>.Failure("Refresh token expired", ErrorCode.BadRequest);
 
         // Generate Token Response
         var tokenResponse = GenerateTokenResponse(user);
@@ -88,7 +90,7 @@ public class AuthService(AppDbContext context, IConfiguration config) : IAuthSer
         user.RefreshTokenExpiry = GetRefreshTokenExpiry();
         await _context.SaveChangesAsync();
 
-        return tokenResponse;
+        return Result<TokenResponse>.Success(tokenResponse);
     }
 
     // =========================== PRIVATE ==============================

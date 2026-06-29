@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using AuthAPI.Commons;
 
 namespace AuthAPI.Controllers;
 
@@ -18,46 +19,34 @@ public class AuthController(IAuthService service) : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        try
-        {
-            var result = await _service.Register(request);
+        var result = await _service.Register(request);
+        
+        if (!result.IsSuccess) 
+            return MapErrorToResponse(result.ErrorCode, result.ErrorMessage!);
 
-            return Created("", result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        return Created("", result.Data);
     }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        try
-        {
-            var result = await _service.Login(request);
+        var result = await _service.Login(request);
+        
+        if (!result.IsSuccess) 
+            return MapErrorToResponse(result.ErrorCode, result.ErrorMessage!);
 
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        return Ok(result.Data);
     }
 
     [HttpPost("refresh")]
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
     {
-        try
-        {
-            var result = await _service.RefreshToken(request);
+        var result = await _service.RefreshToken(request);
 
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        if (!result.IsSuccess) 
+            return MapErrorToResponse(result.ErrorCode, result.ErrorMessage!);
+
+        return Ok(result.Data);
     }
 
     [HttpGet("me")]
@@ -77,5 +66,18 @@ public class AuthController(IAuthService service) : ControllerBase
             role = User.FindFirst(ClaimTypes.Role)?.Value,
             claims
         });
+    }
+
+    public IActionResult MapErrorToResponse(ErrorCode errorCode, string errorMessage)
+    {
+        return errorCode switch
+        {
+            ErrorCode.BadRequest => BadRequest(new { message = errorMessage }),
+            ErrorCode.NotFound => NotFound(new { message = errorMessage }),
+            ErrorCode.Unauthorized => Unauthorized(new { message = errorMessage }),
+            ErrorCode.Forbidden => StatusCode(403, new { message = errorMessage }),
+            ErrorCode.Conflict => Conflict(new { message = errorMessage }),
+            _ => StatusCode(500, new { message = "An unexpected error occurred" })
+        };
     }
 }
