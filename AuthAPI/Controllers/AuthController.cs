@@ -2,8 +2,10 @@
 using AuthAPI.DTOs.Requests;
 using AuthAPI.Models;
 using AuthAPI.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AuthAPI.Controllers;
 
@@ -56,5 +58,24 @@ public class AuthController(IAuthService service) : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    [HttpGet("me")]
+    [Authorize]
+    public IActionResult GetCurrentUser()
+    {
+        var claims = User.Claims.Select(c => new
+        {
+            type = c.Type,
+            value = c.Value
+        });
+
+        return Ok(new
+        {
+            userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+            email = User.FindFirst(ClaimTypes.Email)?.Value,
+            role = User.FindFirst(ClaimTypes.Role)?.Value,
+            claims
+        });
     }
 }
