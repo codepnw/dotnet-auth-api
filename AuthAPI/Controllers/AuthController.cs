@@ -1,27 +1,39 @@
-﻿using AuthAPI.Commons.Constrants;
-using AuthAPI.DTOs.Requests;
-using AuthAPI.Models;
+﻿using AuthAPI.DTOs.Requests;
 using AuthAPI.Services;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using AuthAPI.Commons;
+using FluentValidation;
 
 namespace AuthAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class AuthController(IAuthService service) : ControllerBase
+public class AuthController(
+    IAuthService service,
+    IValidator<RegisterRequest> registerValidator,
+    IValidator<LoginRequest> loginValidator,
+    IValidator<RefreshTokenRequest> refreshValidator
+) : ControllerBase
 {
     private readonly IAuthService _service = service;
+    private readonly IValidator<RegisterRequest> _registerValidator = registerValidator;
+    private readonly IValidator<LoginRequest> _loginValidator = loginValidator;
+    private readonly IValidator<RefreshTokenRequest> _refreshValidator = refreshValidator;
 
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
+        var validator = await _registerValidator.ValidateAsync(request);
+        if (!validator.IsValid)
+        {
+            var errors = validator.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage });
+            return BadRequest(errors);
+        }
+
         var result = await _service.Register(request);
-        
-        if (!result.IsSuccess) 
+        if (!result.IsSuccess)
             return MapErrorToResponse(result.ErrorCode, result.ErrorMessage!);
 
         return Created("", result.Data);
@@ -30,9 +42,15 @@ public class AuthController(IAuthService service) : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var result = await _service.Login(request);
+        var validator = await _loginValidator.ValidateAsync(request);
+        if (!validator.IsValid)
+        {
+            var errors = validator.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage });
+            return BadRequest(errors);
+        }
         
-        if (!result.IsSuccess) 
+        var result = await _service.Login(request);
+        if (!result.IsSuccess)
             return MapErrorToResponse(result.ErrorCode, result.ErrorMessage!);
 
         return Ok(result.Data);
@@ -41,9 +59,15 @@ public class AuthController(IAuthService service) : ControllerBase
     [HttpPost("refresh")]
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
     {
+        var validator = await _refreshValidator.ValidateAsync(request);
+        if (!validator.IsValid)
+        {
+            var errors = validator.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage });
+            return BadRequest(errors);
+        }
+        
         var result = await _service.RefreshToken(request);
-
-        if (!result.IsSuccess) 
+        if (!result.IsSuccess)
             return MapErrorToResponse(result.ErrorCode, result.ErrorMessage!);
 
         return Ok(result.Data);
