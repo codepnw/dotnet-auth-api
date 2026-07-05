@@ -77,7 +77,7 @@ public class AuthService(AppDbContext context, IConfiguration config) : IAuthSer
         // Find Refresh Token
         var user = await _context.Users.FirstOrDefaultAsync(u => u.RefreshToken == request.RefreshToken);
         if (user is null)
-            return Result<TokenResponse>.Failure("Refresh token not found", ErrorCode.NotFound);
+            return Result<TokenResponse>.Failure("Invalid refresh token", ErrorCode.BadRequest);
 
         // Check Expiry
         if (user.RefreshTokenExpiry < DateTime.UtcNow)
