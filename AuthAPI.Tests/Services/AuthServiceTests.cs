@@ -4,9 +4,11 @@ using AuthAPI.DTOs.Requests;
 using AuthAPI.Models;
 using AuthAPI.Services;
 using AuthAPI.Tests.Helpers;
+using Castle.Core.Logging;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Diagnostics;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using IConfiguration = Castle.Core.Configuration.IConfiguration;
 
@@ -38,7 +40,8 @@ public class AuthServiceTests
     public async Task Register_Success()
     {
         await using var context = TestDbContext.Create();
-        var service = new AuthService(context, _config);
+        var logger = NullLogger<AuthService>.Instance;
+        var service = new AuthService(context, _config, logger);
 
         var result = await service.Register(new RegisterRequest
         {
@@ -62,7 +65,8 @@ public class AuthServiceTests
     public async Task Register_Success_GenerateJWT()
     {
         await using var context = TestDbContext.Create();
-        var service = new AuthService(context, _config);
+        var logger = NullLogger<AuthService>.Instance;
+        var service = new AuthService(context, _config, logger);
 
         var result = await service.Register(new RegisterRequest
         {
@@ -83,7 +87,8 @@ public class AuthServiceTests
     public async Task Register_Fail_DuplicateEmail()
     {
         await using var context = TestDbContext.CreateWithUsers();
-        var service = new AuthService(context, _config);
+        var logger = NullLogger<AuthService>.Instance;
+        var service = new AuthService(context, _config, logger);
 
         var result = await service.Register(new RegisterRequest
         {
@@ -100,7 +105,8 @@ public class AuthServiceTests
     public async Task Login_Success()
     {
         await using var context = TestDbContext.CreateWithUsers();
-        var service = new AuthService(context, _config);
+        var logger = NullLogger<AuthService>.Instance;
+        var service = new AuthService(context, _config, logger);
 
         var result = await service.Login(new LoginRequest
         {
@@ -118,7 +124,8 @@ public class AuthServiceTests
     public async Task Login_Fail_InvalidEmail()
     {
         await using var context = TestDbContext.CreateWithUsers();
-        var server = new AuthService(context, _config);
+        var logger = NullLogger<AuthService>.Instance;
+        var server = new AuthService(context, _config, logger);
 
         var result = await server.Login(new LoginRequest
         {
@@ -135,7 +142,8 @@ public class AuthServiceTests
     public async Task Login_Fail_WrongPassword()
     {
         await using var context = TestDbContext.CreateWithUsers();
-        var server = new AuthService(context, _config);
+        var logger = NullLogger<AuthService>.Instance;
+        var server = new AuthService(context, _config, logger);
 
         var result = await server.Login(new LoginRequest
         {
@@ -152,7 +160,8 @@ public class AuthServiceTests
     public async Task RefreshToken_Success()
     {
         await using var context = TestDbContext.CreateWithUsers();
-        var service = new AuthService(context, _config);
+        var logger = NullLogger<AuthService>.Instance;
+        var service = new AuthService(context, _config, logger);
 
         var oldRefreshToken = "valid-refresh-token";
 
@@ -179,7 +188,8 @@ public class AuthServiceTests
     public async Task RefreshToken_Fail_InvalidToken()
     {
         await using var context = TestDbContext.CreateWithUsers();
-        var service = new AuthService(context, _config);
+        var logger = NullLogger<AuthService>.Instance;
+        var service = new AuthService(context, _config, logger);
 
         var result = await service.RefreshToken(new RefreshTokenRequest
         {
@@ -195,6 +205,7 @@ public class AuthServiceTests
     public async Task RefreshToken_Fail_Expired()
     {
         await using var context = TestDbContext.Create();
+        var logger = NullLogger<AuthService>.Instance;
 
         context.Users.Add(new User
         {
@@ -207,7 +218,7 @@ public class AuthServiceTests
         });
         await context.SaveChangesAsync();
 
-        var service = new AuthService(context, _config);
+        var service = new AuthService(context, _config, logger);
 
         var result = await service.RefreshToken(new RefreshTokenRequest
         {

@@ -6,6 +6,9 @@
 # dotenv files
 .env
 
+# log files
+AuthAPI/logs
+
 # User-specific files
 *.rsuser
 *.suo
