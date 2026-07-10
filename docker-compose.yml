@@ -1,5 +1,27 @@
 services:
-  sqlserver:
+  api:
+    container_name: dotnet-auth-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:8000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__Default=Server=sqlserver;Database=AuthAPI;User Id=sa;Password=${DB_PASSWORD};TrustServerCertificate=True;
+      - Jwt__Key=${JWT_SECRET_KEY}
+      - Jwt__Issuer=AuthAPI
+      - Jwt__Audience=AuthAPIClients
+      - Jwt__AccessTokenExpiryMinutes=15
+      - Jwt__RefreshTokenExpiryDays=7
+    volumes:
+      - app-logs:/app/logs
+    depends_on:
+      - db
+    restart: unless-stopped
+  
+  db:
+    container_name: dotnet-auth-db
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
       - ACCEPT_EULA=Y
@@ -7,7 +29,9 @@ services:
     ports:
       - "1433:1433"
     volumes:
-      - sqlserver-data:/var/opt/mssql 
+      - sqlserver-data:/var/opt/mssql
+    restart: unless-stopped
 
 volumes:
   sqlserver-data:
+  app-logs:

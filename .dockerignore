@@ -1,0 +1,28 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# Build output
+**/bin/
+**/obj/
+
+# Test results
+TestResults/
+coverage/
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Environment
+.env
+*.local
+
+# Logs
+**/logs/
