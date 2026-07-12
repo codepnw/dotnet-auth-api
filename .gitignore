@@ -9,6 +9,9 @@
 # log files
 AuthAPI/logs
 
+# Test coverage report
+AuthAPI.Tests/coveragereport/
+
 # User-specific files
 *.rsuser
 *.suo

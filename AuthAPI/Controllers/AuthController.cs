@@ -17,22 +17,17 @@ public class AuthController(
     IValidator<RefreshTokenRequest> refreshValidator
 ) : ControllerBase
 {
-    private readonly IAuthService _service = service;
-    private readonly IValidator<RegisterRequest> _registerValidator = registerValidator;
-    private readonly IValidator<LoginRequest> _loginValidator = loginValidator;
-    private readonly IValidator<RefreshTokenRequest> _refreshValidator = refreshValidator;
-
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        var validator = await _registerValidator.ValidateAsync(request);
+        var validator = await registerValidator.ValidateAsync(request);
         if (!validator.IsValid)
         {
             var errors = validator.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage });
             return BadRequest(errors);
         }
 
-        var result = await _service.Register(request);
+        var result = await service.Register(request);
         if (!result.IsSuccess)
             return MapErrorToResponse(result.ErrorCode, result.ErrorMessage!);
 
@@ -42,14 +37,14 @@ public class AuthController(
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var validator = await _loginValidator.ValidateAsync(request);
+        var validator = await loginValidator.ValidateAsync(request);
         if (!validator.IsValid)
         {
             var errors = validator.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage });
             return BadRequest(errors);
         }
         
-        var result = await _service.Login(request);
+        var result = await service.Login(request);
         if (!result.IsSuccess)
             return MapErrorToResponse(result.ErrorCode, result.ErrorMessage!);
 
@@ -59,14 +54,14 @@ public class AuthController(
     [HttpPost("refresh")]
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
     {
-        var validator = await _refreshValidator.ValidateAsync(request);
+        var validator = await refreshValidator.ValidateAsync(request);
         if (!validator.IsValid)
         {
             var errors = validator.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage });
             return BadRequest(errors);
         }
         
-        var result = await _service.RefreshToken(request);
+        var result = await service.RefreshToken(request);
         if (!result.IsSuccess)
             return MapErrorToResponse(result.ErrorCode, result.ErrorMessage!);
 

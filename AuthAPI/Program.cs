@@ -61,6 +61,33 @@ try
     builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
     var app = builder.Build();
+
+    // Check Database Connection
+    using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+        try
+        {
+            Log.Information("Checking database connection...");
+            var context = services.GetRequiredService<AppDbContext>();
+
+            if (context.Database.CanConnect())
+            {
+                Log.Information("Database connection successfully");
+                
+                context.Database.Migrate();
+            }
+            else
+            {
+                Log.Warning("Cannot connect to the database!");
+            }
+        }
+        catch (Exception e)
+        {
+            Log.Fatal(e, "error connection or migrations the database");
+            throw;
+        }
+    }
     
     // Configure the HTTP request pipeline.
     if (app.Environment.IsDevelopment())
