@@ -27,3 +27,7 @@ jobs:
 
       - name: Run tests
         run: dotnet test --no-build --configuration Release --verbosity normal
+        env:
+          Google__ClientId: ${{ secrets.GOOGLE_CLIENT)ID }}
+          Google__ClientSecret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          Jwt__Key: ${{ secrets.JWT_SECRET_KEY }}

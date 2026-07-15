@@ -16,6 +16,11 @@ public class OAuthService(IConfiguration config, ILogger<OAuthService> logger) :
         {
             var clientId = config["Google:ClientId"];
 
+            if (string.IsNullOrEmpty(clientId))
+            {
+                logger.LogWarning("Google Client ID is not config");
+            }
+
             var settings = new GoogleJsonWebSignature.ValidationSettings
             {
                 Audience = [clientId]

@@ -29,7 +29,9 @@ public class AuthServiceTests
             ["Jwt:Issuer"] = "AuthAPI",
             ["Jwt:Audience"] = "AuthAPIClients",
             ["Jwt:AccessTokenExpiryMinutes"] = "15",
-            ["Jwt:RefreshTokenExpiryDays"] = "7"
+            ["Jwt:RefreshTokenExpiryDays"] = "7",
+            ["Google:ClientId"] = "test-client-id.apps.google.com",
+            ["Google:ClientSecret"] = "test-client-secret"
         };
 
         _config = new ConfigurationBuilder()
