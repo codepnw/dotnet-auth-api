@@ -9,6 +9,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using AuthAPI.Commons;
+using AuthAPI.Commons.Constrants;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace AuthAPI.Services;
@@ -18,9 +19,17 @@ public interface IAuthService
     Task<Result<TokenResponse>> Register(RegisterRequest request);
     Task<Result<TokenResponse>> Login(LoginRequest request);
     Task<Result<TokenResponse>> RefreshToken(RefreshTokenRequest request);
+
+    // OAuth
+    Task<Result<TokenResponse>> GoogleLogin(GoogleLoginRequest request);
 }
 
-public class AuthService(AppDbContext context, IConfiguration config, ILogger<AuthService> logger) : IAuthService
+public class AuthService(
+    AppDbContext context,
+    IConfiguration config,
+    ILogger<AuthService> logger,
+    IOAuthService oauthService
+) : IAuthService
 {
     public async Task<Result<TokenResponse>> Register(RegisterRequest request)
     {
@@ -71,6 +80,7 @@ public class AuthService(AppDbContext context, IConfiguration config, ILogger<Au
         // Generate Token Response
         var tokenResponse = GenerateTokenResponse(user);
 
+        user.LastLoginAt = DateTime.UtcNow;
         user.RefreshToken = tokenResponse.RefreshToken;
         user.RefreshTokenExpiry = GetRefreshTokenExpiry();
         await context.SaveChangesAsync();
@@ -103,6 +113,75 @@ public class AuthService(AppDbContext context, IConfiguration config, ILogger<Au
         await context.SaveChangesAsync();
 
         return Result<TokenResponse>.Success(tokenResponse);
+    }
+
+    public async Task<Result<TokenResponse>> GoogleLogin(GoogleLoginRequest request)
+    {
+        var userInfo = await oauthService.GoogleVerifyToken(request.IdToken);
+        if (userInfo == null)
+        {
+            logger.LogWarning("Google login failed: invalid token");
+            return Result<TokenResponse>.Failure("Invalid google token", ErrorCode.BadRequest);
+        }
+
+        logger.LogInformation("Google login email: {Email}", userInfo.Email);
+        
+        // Find from GoogleId
+        var user = await context.Users.FirstOrDefaultAsync(u => u.GoogleId == userInfo.GoogleId);
+
+        if (user != null)
+        {
+            // Found User
+            logger.LogInformation("Existing google user: {UserId}", user.Id);
+        }
+        else
+        {
+            // Find from Email
+            user = await context.Users.FirstOrDefaultAsync(u => u.Email == userInfo.Email);
+
+            if (user != null)
+            {
+                // Local Account -> Link Google Account
+                if (user.GoogleId != null)
+                {
+                    logger.LogWarning("Email {Email} already linked to different Google account", userInfo.Email);
+                    return Result<TokenResponse>.Failure("Email already linked to another account", ErrorCode.Conflict);
+                }
+
+                user.GoogleId = userInfo.GoogleId;
+                user.PictureUrl = userInfo.PictureUrl;
+                user.DisplayName = userInfo.DisplayName;
+                logger.LogInformation("Link Google account to existing user: {UserId}", user.Id);
+            }
+            else
+            {
+                // New User
+                user = new User
+                {
+                    Email = userInfo.Email,
+                    GoogleId = userInfo.GoogleId,
+                    DisplayName = userInfo.DisplayName,
+                    PictureUrl = userInfo.PictureUrl,
+                    Role = UserRoles.User,
+                    PasswordHash = ""
+                };
+
+                context.Users.Add(user);
+                logger.LogInformation("Created new user from Google login: {Email}", userInfo.Email);
+            }
+        }
+        
+        // Generate Token Response
+        var response = GenerateTokenResponse(user);
+
+        // Update Data
+        user.LastLoginAt = DateTime.UtcNow;
+        user.RefreshToken = response.RefreshToken;
+        user.RefreshTokenExpiry = GetRefreshTokenExpiry();
+        // Save Data
+        await context.SaveChangesAsync();
+
+        return Result<TokenResponse>.Success(response);
     }
 
     // =========================== PRIVATE ==============================

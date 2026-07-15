@@ -15,9 +15,9 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     Log.Information("Starting AuthAPI");
-    
+
     var builder = WebApplication.CreateBuilder(args);
-    
+
     // Use Serilog
     builder.Host.UseSerilog((context, services, configuration) => configuration
         .ReadFrom.Configuration(context.Configuration)
@@ -34,6 +34,7 @@ try
 
     // Dependency Injection
     builder.Services.AddScoped<IAuthService, AuthService>();
+    builder.Services.AddScoped<IOAuthService, OAuthService>();
 
     // Add JWT Authentication
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -74,7 +75,7 @@ try
             if (context.Database.CanConnect())
             {
                 Log.Information("Database connection successfully");
-                
+
                 context.Database.Migrate();
             }
             else
@@ -88,7 +89,7 @@ try
             throw;
         }
     }
-    
+
     // Configure the HTTP request pipeline.
     if (app.Environment.IsDevelopment())
     {
@@ -96,10 +97,10 @@ try
     }
 
     app.UseHttpsRedirection();
-    
+
     // Global Exception Middleware
     app.UseMiddleware<GlobalExceptionMiddleware>();
-    
+
     // Serilog Request Logging
     app.UseSerilogRequestLogging();
 
@@ -109,6 +110,10 @@ try
     app.MapControllers();
 
     app.Run();
+}
+catch (Exception e) when(e.GetType().Name == "HostAbortedException")
+{
+    // Skip: EF Core Migrations Exception
 }
 catch (Exception e)
 {

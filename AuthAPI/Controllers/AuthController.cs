@@ -14,16 +14,17 @@ public class AuthController(
     IAuthService service,
     IValidator<RegisterRequest> registerValidator,
     IValidator<LoginRequest> loginValidator,
-    IValidator<RefreshTokenRequest> refreshValidator
+    IValidator<RefreshTokenRequest> refreshValidator,
+    IValidator<GoogleLoginRequest> googleValidator
 ) : ControllerBase
 {
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        var validator = await registerValidator.ValidateAsync(request);
-        if (!validator.IsValid)
+        var validation = await registerValidator.ValidateAsync(request);
+        if (!validation.IsValid)
         {
-            var errors = validator.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage });
+            var errors = validation.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage });
             return BadRequest(errors);
         }
 
@@ -37,13 +38,13 @@ public class AuthController(
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var validator = await loginValidator.ValidateAsync(request);
-        if (!validator.IsValid)
+        var validation = await loginValidator.ValidateAsync(request);
+        if (!validation.IsValid)
         {
-            var errors = validator.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage });
+            var errors = validation.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage });
             return BadRequest(errors);
         }
-        
+
         var result = await service.Login(request);
         if (!result.IsSuccess)
             return MapErrorToResponse(result.ErrorCode, result.ErrorMessage!);
@@ -54,14 +55,31 @@ public class AuthController(
     [HttpPost("refresh")]
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
     {
-        var validator = await refreshValidator.ValidateAsync(request);
-        if (!validator.IsValid)
+        var validation = await refreshValidator.ValidateAsync(request);
+        if (!validation.IsValid)
         {
-            var errors = validator.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage });
+            var errors = validation.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage });
             return BadRequest(errors);
         }
-        
+
         var result = await service.RefreshToken(request);
+        if (!result.IsSuccess)
+            return MapErrorToResponse(result.ErrorCode, result.ErrorMessage!);
+
+        return Ok(result.Data);
+    }
+
+    [HttpPost("google")]
+    public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
+    {
+        var validation = await googleValidator.ValidateAsync(request);
+        if (!validation.IsValid)
+        {
+            var errors = validation.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage });
+            return BadRequest(new { message = "Validation failed", errors });
+        }
+
+        var result = await service.GoogleLogin(request);
         if (!result.IsSuccess)
             return MapErrorToResponse(result.ErrorCode, result.ErrorMessage!);
 

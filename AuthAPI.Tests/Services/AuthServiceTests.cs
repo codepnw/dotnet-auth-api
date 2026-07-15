@@ -1,6 +1,7 @@
 using AuthAPI.Commons;
 using AuthAPI.Commons.Constrants;
 using AuthAPI.DTOs.Requests;
+using AuthAPI.DTOs.Responses;
 using AuthAPI.Models;
 using AuthAPI.Services;
 using AuthAPI.Tests.Helpers;
@@ -41,7 +42,7 @@ public class AuthServiceTests
     {
         await using var context = TestDbContext.Create();
         var logger = NullLogger<AuthService>.Instance;
-        var service = new AuthService(context, _config, logger);
+        var service = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
 
         var result = await service.Register(new RegisterRequest
         {
@@ -59,14 +60,14 @@ public class AuthServiceTests
         user!.Role.Should().Be(UserRoles.User);
         user.RefreshToken.Should().Be(result.Data.RefreshToken);
     }
-    
+
     // Private Method Generate Token
     [Fact]
     public async Task Register_Success_GenerateJWT()
     {
         await using var context = TestDbContext.Create();
         var logger = NullLogger<AuthService>.Instance;
-        var service = new AuthService(context, _config, logger);
+        var service = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
 
         var result = await service.Register(new RegisterRequest
         {
@@ -88,7 +89,7 @@ public class AuthServiceTests
     {
         await using var context = TestDbContext.CreateWithUsers();
         var logger = NullLogger<AuthService>.Instance;
-        var service = new AuthService(context, _config, logger);
+        var service = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
 
         var result = await service.Register(new RegisterRequest
         {
@@ -106,7 +107,7 @@ public class AuthServiceTests
     {
         await using var context = TestDbContext.CreateWithUsers();
         var logger = NullLogger<AuthService>.Instance;
-        var service = new AuthService(context, _config, logger);
+        var service = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
 
         var result = await service.Login(new LoginRequest
         {
@@ -125,7 +126,7 @@ public class AuthServiceTests
     {
         await using var context = TestDbContext.CreateWithUsers();
         var logger = NullLogger<AuthService>.Instance;
-        var server = new AuthService(context, _config, logger);
+        var server = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
 
         var result = await server.Login(new LoginRequest
         {
@@ -143,7 +144,7 @@ public class AuthServiceTests
     {
         await using var context = TestDbContext.CreateWithUsers();
         var logger = NullLogger<AuthService>.Instance;
-        var server = new AuthService(context, _config, logger);
+        var server = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
 
         var result = await server.Login(new LoginRequest
         {
@@ -161,7 +162,7 @@ public class AuthServiceTests
     {
         await using var context = TestDbContext.CreateWithUsers();
         var logger = NullLogger<AuthService>.Instance;
-        var service = new AuthService(context, _config, logger);
+        var service = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
 
         var oldRefreshToken = "valid-refresh-token";
 
@@ -169,7 +170,7 @@ public class AuthServiceTests
         {
             RefreshToken = oldRefreshToken
         });
-    
+
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Data.Should().NotBeNull();
@@ -178,7 +179,7 @@ public class AuthServiceTests
 
         // NewRefreshToken != OldRefreshToken
         result.Data.RefreshToken.Should().NotBe(oldRefreshToken);
-        
+
         // Check Db
         var user = context.Users.FirstOrDefault(u => u.Email == MockEmail);
         user!.RefreshToken.Should().Be(result.Data.RefreshToken);
@@ -189,7 +190,7 @@ public class AuthServiceTests
     {
         await using var context = TestDbContext.CreateWithUsers();
         var logger = NullLogger<AuthService>.Instance;
-        var service = new AuthService(context, _config, logger);
+        var service = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
 
         var result = await service.RefreshToken(new RefreshTokenRequest
         {
@@ -218,7 +219,7 @@ public class AuthServiceTests
         });
         await context.SaveChangesAsync();
 
-        var service = new AuthService(context, _config, logger);
+        var service = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
 
         var result = await service.RefreshToken(new RefreshTokenRequest
         {
@@ -227,6 +228,100 @@ public class AuthServiceTests
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorMessage.Should().Be("Refresh token expired");
+        result.ErrorCode.Should().Be(ErrorCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task GoogleLogin_Success_NewUser()
+    {
+        // Arrange
+        await using var context = TestDbContext.Create();
+        var logger = NullLogger<AuthService>.Instance;
+        var mockGoogleService = new Mock<IOAuthService>();
+        mockGoogleService.Setup(x => x.GoogleVerifyToken(It.IsAny<string>()))
+            .ReturnsAsync(new GoogleLoginResponse
+            {
+                GoogleId = "google-1",
+                Email = "google@test.com",
+                DisplayName = "Test User",
+                PictureUrl = "",
+                Verified = true
+            });
+
+        var service = new AuthService(context, _config, logger, mockGoogleService.Object);
+
+        // Act
+        var result = await service.GoogleLogin(new GoogleLoginRequest
+        {
+            IdToken = "valid-token"
+        });
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Data!.AccessToken.Should().NotBeNullOrEmpty();
+
+        var user = context.Users.FirstOrDefault(u => u.Email == "google@test.com");
+        user.Should().NotBeNull();
+        user!.GoogleId.Should().Be("google-1");
+    }
+
+    [Fact]
+    public async Task GoogleLogin_Success_ExistUser()
+    {
+        // Arrange
+        await using var context = TestDbContext.Create();
+        context.Users.Add(new User
+        {
+            GoogleId = "exist-1",
+            Email = "exist@test.com",
+            DisplayName = "Exist User"
+        });
+        await context.SaveChangesAsync();
+
+        var logger = NullLogger<AuthService>.Instance;
+
+        var mockGoogleService = new Mock<IOAuthService>();
+        mockGoogleService.Setup(x => x.GoogleVerifyToken(It.IsAny<string>()))
+            .ReturnsAsync(new GoogleLoginResponse
+            {
+                GoogleId = "exist-1",
+                Email = "exist@test.com",
+                Verified = true
+            });
+
+        var service = new AuthService(context, _config, logger, mockGoogleService.Object);
+
+        // Act
+        var result = await service.GoogleLogin(new GoogleLoginRequest
+        {
+            IdToken = "valid-token"
+        });
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        context.Users.Count().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GoogleLogin_Fail_InvalidToken()
+    {
+        // Arrange
+        await using var context = TestDbContext.Create();
+        var logger = NullLogger<AuthService>.Instance;
+        var mockGoogleService = new Mock<IOAuthService>();
+        mockGoogleService.Setup(x => x.GoogleVerifyToken(It.IsAny<string>()))
+            .ReturnsAsync((GoogleLoginResponse?)null);
+
+        var service = new AuthService(context, _config, logger, mockGoogleService.Object);
+        
+        // Act
+        var result = await service.GoogleLogin(new GoogleLoginRequest
+        {
+            IdToken = "invalid-token"
+        });
+        
+        // Assert
+        result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be(ErrorCode.BadRequest);
     }
 }
