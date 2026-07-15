@@ -15,3 +15,10 @@ migrations-add:
 
 migrations-update:
 	dotnet ef --project AuthAPI database update
+	
+gh-run:
+	gh workflow run ci.yml
+
+# Test CI/CD
+act:
+	act --secret-file .secrets

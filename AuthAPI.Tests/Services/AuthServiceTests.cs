@@ -44,7 +44,7 @@ public class AuthServiceTests
     {
         await using var context = TestDbContext.Create();
         var logger = NullLogger<AuthService>.Instance;
-        var service = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
+        var service = new AuthService(context, _config, logger, Mock.Of<IOAuthService>());
 
         var result = await service.Register(new RegisterRequest
         {
@@ -69,7 +69,7 @@ public class AuthServiceTests
     {
         await using var context = TestDbContext.Create();
         var logger = NullLogger<AuthService>.Instance;
-        var service = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
+        var service = new AuthService(context, _config, logger, Mock.Of<IOAuthService>());
 
         var result = await service.Register(new RegisterRequest
         {
@@ -91,7 +91,7 @@ public class AuthServiceTests
     {
         await using var context = TestDbContext.CreateWithUsers();
         var logger = NullLogger<AuthService>.Instance;
-        var service = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
+        var service = new AuthService(context, _config, logger, Mock.Of<IOAuthService>());
 
         var result = await service.Register(new RegisterRequest
         {
@@ -109,7 +109,7 @@ public class AuthServiceTests
     {
         await using var context = TestDbContext.CreateWithUsers();
         var logger = NullLogger<AuthService>.Instance;
-        var service = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
+        var service = new AuthService(context, _config, logger, Mock.Of<IOAuthService>());
 
         var result = await service.Login(new LoginRequest
         {
@@ -128,9 +128,9 @@ public class AuthServiceTests
     {
         await using var context = TestDbContext.CreateWithUsers();
         var logger = NullLogger<AuthService>.Instance;
-        var server = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
+        var service = new AuthService(context, _config, logger, Mock.Of<IOAuthService>());
 
-        var result = await server.Login(new LoginRequest
+        var result = await service.Login(new LoginRequest
         {
             Email = "invalidm@test.com",
             Password = MockPassword
@@ -146,7 +146,7 @@ public class AuthServiceTests
     {
         await using var context = TestDbContext.CreateWithUsers();
         var logger = NullLogger<AuthService>.Instance;
-        var server = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
+        var server = new AuthService(context, _config, logger, Mock.Of<IOAuthService>());
 
         var result = await server.Login(new LoginRequest
         {
@@ -164,7 +164,7 @@ public class AuthServiceTests
     {
         await using var context = TestDbContext.CreateWithUsers();
         var logger = NullLogger<AuthService>.Instance;
-        var service = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
+        var service = new AuthService(context, _config, logger, Mock.Of<IOAuthService>());
 
         var oldRefreshToken = "valid-refresh-token";
 
@@ -192,7 +192,7 @@ public class AuthServiceTests
     {
         await using var context = TestDbContext.CreateWithUsers();
         var logger = NullLogger<AuthService>.Instance;
-        var service = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
+        var service = new AuthService(context, _config, logger, Mock.Of<IOAuthService>());
 
         var result = await service.RefreshToken(new RefreshTokenRequest
         {
@@ -221,7 +221,7 @@ public class AuthServiceTests
         });
         await context.SaveChangesAsync();
 
-        var service = new AuthService(context, _config, logger, Mock.Of<OAuthService>());
+        var service = new AuthService(context, _config, logger, Mock.Of<IOAuthService>());
 
         var result = await service.RefreshToken(new RefreshTokenRequest
         {
