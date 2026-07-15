@@ -33,7 +33,7 @@ Production-ready authentication service built with ASP.NET Core, featuring JWT a
 - **Backend:** ASP.NET Core 10.0
 - **Database:** SQL Server (Local) / PostgreSQL (Production)
 - **ORM:** Entity Framework Core
-- **Authentication:** JWT, OAuth 2.0 (coming soon)
+- **Authentication:** JWT, OAuth 2.0 (Google)
 - **Validation:** FluentValidation
 - **Testing:** xUnit, Moq, FluentAssertions
 - **Logging:** Serilog
@@ -42,7 +42,6 @@ Production-ready authentication service built with ASP.NET Core, featuring JWT a
 
 ## 🔮 Future Enhancements
 
-- OAuth 2.0 Social Login (Google, GitHub)
 - Two-Factor Authentication (2FA)
 - Rate Limiting for API protection
 - API Versioning
