@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using AuthAPI.Commons;
 using FluentValidation;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace AuthAPI.Controllers;
 
@@ -36,6 +37,7 @@ public class AuthController(
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("LoginPolicy")]     // 5 requests per minutes
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var validation = await loginValidator.ValidateAsync(request);
@@ -70,6 +72,7 @@ public class AuthController(
     }
 
     [HttpPost("google")]
+    [EnableRateLimiting("LoginPolicy")]     // 5 requests per minutes
     public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
     {
         var validation = await googleValidator.ValidateAsync(request);

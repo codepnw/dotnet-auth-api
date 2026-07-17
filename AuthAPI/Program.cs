@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Threading.RateLimiting;
 using AuthAPI.Middleware;
 using FluentValidation;
 using Serilog;
@@ -61,6 +62,52 @@ try
     // Add Request Validators
     builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
+    // =============================
+    // ---  Rate Limit Config  ----
+    // =============================
+    builder.Services.AddRateLimiter(options =>
+    {
+        // Global Limit all Endpoints
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknow",
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    Window = TimeSpan.FromSeconds(10),
+                    PermitLimit = 100,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 0
+                })
+        );
+
+        // Login Policy (Login/Register)
+        options.AddPolicy("LoginPolicy", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknow",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 5,            // 5 requests per minutes
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }
+        ));
+        
+        // Custom Response
+        options.OnRejected = async (context, cancell) =>
+        {
+            context.HttpContext.Response.StatusCode = 429;  // Too many Requests
+            context.HttpContext.Response.ContentType = "application/json";
+
+            var errorResponse = new
+            {
+                message = "Too many requests, Please try again later",
+                retryAfterSeconds = 60
+            };
+
+            await context.HttpContext.Response.WriteAsJsonAsync(errorResponse, cancell);
+        };
+    });
+
     var app = builder.Build();
 
     // Check Database Connection
@@ -103,7 +150,12 @@ try
 
     // Serilog Request Logging
     app.UseSerilogRequestLogging();
-
+    
+    // Rate Limit
+    app.UseRouting();
+    app.UseRateLimiter();
+    
+    // Authorization and Authentication
     app.UseAuthentication();
     app.UseAuthorization();
 
@@ -111,7 +163,7 @@ try
 
     app.Run();
 }
-catch (Exception e) when(e.GetType().Name == "HostAbortedException")
+catch (Exception e) when (e.GetType().Name == "HostAbortedException")
 {
     // Skip: EF Core Migrations Exception
 }
