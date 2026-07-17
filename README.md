@@ -2,6 +2,7 @@
 
 Production-ready authentication service built with ASP.NET Core, featuring JWT authentication, refresh tokens, and role-based authorization.
 
+- Click "Use this template" to create a new project based on AuthAPI!
 
 ## 🚀 Features
 
@@ -26,7 +27,7 @@ Production-ready authentication service built with ASP.NET Core, featuring JWT a
 - **Token Expiry**: Access token (15 min), Refresh token (7 days)
 - **Environment Variables**: Secrets stored securely
 - **Input Validation**: All requests validated with FluentValidation
-
+- **Rate Limiting**: API protection
 
 ## 🛠️ Tech Stack
 
@@ -43,7 +44,6 @@ Production-ready authentication service built with ASP.NET Core, featuring JWT a
 ## 🔮 Future Enhancements
 
 - Two-Factor Authentication (2FA)
-- Rate Limiting for API protection
 - API Versioning
 - Redis Caching for improved performance
 
